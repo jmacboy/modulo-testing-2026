@@ -1,0 +1,4 @@
+# Tooling caches (local to each machine)
+.atl/
+inventory-project/Inventory.Tests/coveragereport/
+inventory-project/Inventory.Tests/CoverageHistory/
