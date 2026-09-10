@@ -5,3 +5,9 @@
 inventory-project/Inventory.Tests/coveragereport/
 inventory-project/Inventory.Tests/CoverageHistory/
 pact-verifier/node_modules/
+
+# ProducerConsumerEjemplo — archivos generados
+ProducerConsumerEjemplo/**/bin/
+ProducerConsumerEjemplo/**/obj/
+ProducerConsumerEjemplo/.vs/
+ProducerConsumerEjemplo/**/pacts/

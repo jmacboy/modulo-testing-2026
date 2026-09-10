@@ -11,6 +11,7 @@ modulo-testing-2026/
 ├── inventory-project/          # API Backend (.NET + PostgreSQL)
 ├── react-client/               # Frontend (React + Vite)
 ├── pact-verifier/              # Verificador de contratos Pact
+├── ProducerConsumerEjemplo/    # Ejemplo de Productor-Consumidor con RabbitMQ y Pact Messages
 ├── Mascotas Integration Test 2026.postman_collection.json   # Tests de integración (Mascotas API)
 └── Inventory Contract Tests.postman_collection.json         # Tests de contrato (Inventory API)
 ```
@@ -288,7 +289,190 @@ Esto ejecuta `mocha tests/provider/ItemProviderService.spec.js` que verifica que
 
 ---
 
-## 4. Colección Postman: Mascotas Integration Test
+## 4. Proyecto: ProducerConsumerEjemplo (RabbitMQ + Pact Messages)
+
+### Qué es
+
+Ejemplo completo de comunicación asincrónica mediante colas de mensajes con **RabbitMQ**. Demuestra el patrón Productor-Consumidor con un productor que publica eventos `OrderCreated` y un consumidor que los procesa. Incluye testing de contratos de mensajes con **PactNet Messages** (sin tocar el broker) y tests de integración reales contra RabbitMQ.
+
+### Estructura
+
+```
+ProducerConsumerEjemplo/
+├── QueueProducerApp/                    # Productor de eventos
+│   ├── EventProduce.cs                  # Clase que publica OrderCreatedEvent a RabbitMQ
+│   └── Program.cs                       # Entry point del productor
+├── QueueConsumerApp/                    # Consumidor de eventos
+│   ├── OrderCreatedEvent.cs             # Modelo del evento (record)
+│   ├── OrderCreatedEventHandler.cs      # Handler que procesa el JSON del evento
+│   └── Program.cs                       # Entry point del consumidor
+├── MessagePactConsumer/                 # Pact — lado Consumer (Play & Record)
+│   ├── OrderCreatedEventConsumerPactTests.cs  # Genera el contrato del mensaje
+│   └── pacts/                           # Contratos Pact generados (JSON)
+├── MessagePactProvider/                 # Pact — lado Provider (Replay & Verify)
+│   └── OrderCreatedEventProviderPactTests.cs  # Verifica el productor contra el contrato
+├── IntegrationTesterApp/                # Tests de integración contra RabbitMQ real
+│   ├── ConsumerProducerTest.cs          # Test que escucha y valida el evento
+│   └── RabbitMqListenerFixture.cs       # Fixture que crea conexión y cola temporal
+├── docker-compose.yml                   # RabbitMQ efímero para testing
+├── rabbitmq.conf                        # Configuración del broker de prueba
+└── ProducerConsumerEjemplo.sln          # Solución de Visual Studio
+```
+
+### Qué demuestra este ejemplo
+
+| Concepto | Qué se ve |
+|----------|-----------|
+| **Productor** | `EventProduce` declara exchange, queue y binding; serializa un `OrderCreatedEvent` a JSON camelCase y lo publica |
+| **Consumidor** | `OrderCreatedEventHandler` deserializa el JSON, valida campos (`orderId > 0`, `total > 0`) y hace `BasicAck` |
+| **Pact Messages (Consumer)** | `MessagePactConsumer` genera un contrato del shape del mensaje — sin RabbitMQ — usando matchers de tipo |
+| **Pact Messages (Provider)** | `MessagePactProvider` verifica que `EventProduce.BuildOrderCreatedEvent()` produce un mensaje que cumple el contrato |
+| **Integración real** | `IntegrationTesterApp` conecta a RabbitMQ, crea una cola temporal, se bindea al exchange real y valida que el evento llega |
+
+### Arquitectura del Flujo
+
+```
+┌──────────────────────┐         ┌──────────────────────┐
+│  QueueProducerApp    │         │  QueueConsumerApp    │
+│  (EventProduce)      │         │  (EventHandler)      │
+└──────────┬───────────┘         └──────────▲───────────┘
+           │                                │
+           │  publica a                     │  consume de
+           ▼                                │
+┌──────────────────────────────────────────────────────┐
+│                    RabbitMQ                          │
+│  orders.exchange ──binding──▶ orders.created.queue   │
+└──────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────┐
+│                  Testing (sin broker)                 │
+│                                                      │
+│  MessagePactConsumer        MessagePactProvider      │
+│  (genera contrato)    ───▶  (verifica productor)    │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────┐
+│                  Testing (con broker)                 │
+│                                                      │
+│  IntegrationTesterApp                               │
+│  (escucha cola temporal, valida evento)              │
+└──────────────────────────────────────────────────────┘
+```
+
+### Cómo Abrirlo
+
+**En Visual Studio:**
+1. Abrir Visual Studio 2022
+2. Seleccionar `Archivo > Abrir > Proyecto o Solución`
+3. Navegar a `ProducerConsumerEjemplo/ProducerConsumerEjemplo.sln`
+4. Hacer clic en `Abrir`
+
+**En Visual Studio Code (alternativa):**
+1. Abrir VS Code
+2. `Archivo > Abrir carpeta...`
+3. Seleccionar la carpeta `ProducerConsumerEjemplo`
+
+### Requisitos Previos
+
+| Herramienta | Uso |
+|-------------|-----|
+| **Visual Studio 2022+** | Abrir y compilar la solución .NET |
+| **Docker Desktop** | Ejecutar RabbitMQ en contenedor |
+| **.NET 8 SDK** | Compilar y ejecutar los proyectos |
+
+### Cómo Ejecutarlo
+
+#### Paso 1: Levantar RabbitMQ
+
+Desde CMD en la carpeta `ProducerConsumerEjemplo`:
+
+```cmd
+docker compose up -d
+docker compose ps   # Verificar que rabbitmq esté healthy
+```
+
+El broker estará disponible en:
+- **AMQP:** `localhost:5672` (puerto del productor/consumidor)
+- **Admin UI:** `http://localhost:15672` (guest / guest)
+
+#### Paso 2: Ejecutar el Consumer
+
+Desde Visual Studio:
+1. Seleccionar `QueueConsumerApp` como proyecto de inicio
+2. Presionar `F5`
+
+Desde CMD:
+```cmd
+cd QueueConsumerApp
+dotnet run
+```
+
+Verás: `Escuchando eventos...`
+
+#### Paso 3: Ejecutar el Producer
+
+Desde Visual Studio:
+1. Seleccionar `QueueProducerApp` como proyecto de inicio
+2. Presionar `F5`
+
+Desde CMD (en otra terminal):
+```cmd
+cd QueueProducerApp
+dotnet run
+```
+
+Verás:
+```
+Enviando un evento a la cola
+Evento enviado
+```
+
+Y en la terminal del consumer:
+```
+Evento recibido: {"orderId":123,"total":250.5,"createdAt":"2026-09-10T..."}
+```
+
+#### Paso 4: Ejecutar los Tests de Integración
+
+```cmd
+cd IntegrationTesterApp
+dotnet test
+```
+
+Este test crea una cola temporal, se bindea al exchange real y espera recibir el evento publicado por el productor.
+
+### Pact Messages — Testing sin Broker
+
+El ejemplo demuestra que el **contract testing de mensajes** no necesita un broker corriendo:
+
+**Consumer (genera el contrato):**
+```cmd
+cd MessagePactConsumer
+dotnet test
+```
+Genera el archivo `pacts/order-created-consumer-order-created-producer.json` con el shape esperado del mensaje.
+
+**Provider (verifica contra el productor):**
+```cmd
+cd MessagePactProvider
+dotnet test
+```
+Verifica que `EventProduce.BuildOrderCreatedEvent()` produce un JSON que cumple el contrato — **sin RabbitMQ de por medio**.
+
+### Detener RabbitMQ
+
+```cmd
+# Detener conservando estado
+docker compose stop
+
+# Detener y eliminar todo (limpio para la próxima corrida)
+docker compose down
+```
+
+---
+
+## 5. Colección Postman: Mascotas Integration Test
 
 ### Qué es
 
@@ -309,7 +493,7 @@ Colección de Postman para tests de integración de un API de mascotas (proyecto
 
 ---
 
-## 5. Colección Postman: Inventory Contract Tests
+## 6. Colección Postman: Inventory Contract Tests
 
 ### Qué es
 
@@ -347,7 +531,7 @@ Colección de Postman para verificar el contrato de la API de inventario. Valida
 
 ---
 
-## 6. Agents y Skills Custom
+## 7. Agents y Skills Custom
 
 Cada proyecto contiene agents y skills personalizados para Claude Code / OpenCode que automatizan flujos de testing.
 

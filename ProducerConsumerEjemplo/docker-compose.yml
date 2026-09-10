@@ -1,0 +1,34 @@
+# Broker de prueba para ProducerConsumerEjemplo.
+#
+# Docker acá es un mecanismo de aislamiento del entorno de prueba, nada más: levanta un
+# RabbitMQ efímero contra el que corren el productor, el consumidor y la prueba de integración.
+# No hay volumen a propósito — cada `docker compose down` deja un broker limpio, sin exchanges
+# ni colas heredadas de la corrida anterior.
+#
+#   docker compose up -d          levantar y esperar a que quede sano
+#   docker compose down           bajar y borrar todo el estado
+#
+# Interfaz de administración en http://localhost:15672 (guest / guest): sirve para ver el
+# exchange, el binding y la cola temporal aparecer y desaparecer durante la prueba.
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: producerconsumer-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP — el puerto al que se conectan ConnectionFactory y el fixture
+      - "15672:15672"  # Interfaz de administración
+    volumes:
+      # `guest` solo puede conectarse por loopback con la configuración por defecto, y una
+      # conexión desde el host a través del puerto publicado no llega como loopback. Este
+      # archivo levanta esa restricción para que guest/guest funcione, que es lo que el
+      # código de este ejemplo tiene hardcodeado.
+      - ./rabbitmq.conf:/etc/rabbitmq/conf.d/10-testing-class.conf:ro
+    healthcheck:
+      # Hasta que esto no pasa, el broker acepta el TCP pero todavía no atiende AMQP.
+      # Sin esta espera, la prueba arranca demasiado pronto y falla por conexión rechazada.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
