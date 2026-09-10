@@ -26,4 +26,6 @@
 
 # Tooling caches (local to each machine)
 .atl/
+.opencode/
+.codegraph/
 .claude/settings.local.json

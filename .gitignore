@@ -1,4 +1,7 @@
 # Tooling caches (local to each machine)
 .atl/
+.opencode/
+.codegraph/
 inventory-project/Inventory.Tests/coveragereport/
 inventory-project/Inventory.Tests/CoverageHistory/
+pact-verifier/node_modules/

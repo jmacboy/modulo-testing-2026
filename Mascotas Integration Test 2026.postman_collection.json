@@ -1,0 +1,242 @@
+{
+  "info": {
+    "_postman_id": "6104137d-9523-4018-ab27-e0a47c47230d",
+    "name": "Mascotas Integration Test 2026",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "6777473"
+  },
+  "item": [
+    {
+      "name": "Login con usuario válidos e inválidos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {\r",
+              "    pm.test(\"Status code is 200\", function () {\r",
+              "        pm.response.to.have.status(200);\r",
+              "    });\r",
+              "    pm.test(\"Token is present\", function () {\r",
+              "        var jsonData = pm.response.json();\r",
+              "        pm.expect(jsonData.access_token).to.not.be.null;\r",
+              "        pm.expect(jsonData.access_token).to.not.be.undefined;\r",
+              "        var token = jsonData.access_token;\r",
+              "        pm.expect(token).to.have.length.above(0);\r",
+              "    });\r",
+              "} else {\r",
+              "    pm.test(\"Status code is 401\", function () {\r",
+              "        pm.response.to.have.status(401);\r",
+              "    });\r",
+              "    pm.test(\"Message is Unauthenticated\", function () {\r",
+              "        var jsonData = pm.response.json();\r",
+              "        pm.expect(jsonData.message).to.eql(\"Unauthenticated\");\r",
+              "    })\r",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const usersText = pm.collectionVariables.get(\"users\");\r",
+              "const users = JSON.parse(usersText);\r",
+              "let userIndex = pm.collectionVariables.get(\"currentIndex\");\r",
+              "if (!userIndex) {\r",
+              "    userIndex = 0;\r",
+              "}\r",
+              "const user = users[userIndex];\r",
+              "pm.collectionVariables.set(\"currentEmail\", user.email);\r",
+              "pm.collectionVariables.set(\"currentPassword\", user.password);\r",
+              "pm.collectionVariables.set(\"currentIndex\", (userIndex + 1) % users.length);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"email\": \"{{currentEmail}}\",\r\n    \"password\": \"{{currentPassword}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{URL_BASE}}/auth/clientlogin",
+          "host": [
+            "{{URL_BASE}}"
+          ],
+          "path": [
+            "auth",
+            "clientlogin"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Validar campos nulos en login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 422\", function () {",
+              "    pm.response.to.have.status(422);",
+              "});",
+              "",
+              "pm.test(\"Response has error message\", function () {",
+              "    pm.response.to.have.jsonBody(\"message\");",
+              "});",
+              "",
+              "pm.test(\"Response contains validation errors for email or password\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    var expectedValidationText =",
+              "        pm.collectionVariables.get(\"expectedValidation\");",
+              "    var expectedValidation = JSON.parse(expectedValidationText);",
+              "    if (expectedValidation.password) {",
+              "        pm.expect(jsonData.errors).to.have.property(\"password\");",
+              "    }",
+              "    if (expectedValidation.email) {",
+              "        pm.expect(jsonData.errors).to.have.property(\"email\");",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const usersText = pm.collectionVariables.get(\"usersForValidation\");\r",
+              "const users = JSON.parse(usersText);\r",
+              "let userIndex = pm.collectionVariables.get(\"validationIndex\");\r",
+              "if (!userIndex) {\r",
+              "    userIndex = 0;\r",
+              "}\r",
+              "const user = users[userIndex];\r",
+              "pm.collectionVariables.set(\"userJson\", JSON.stringify(user.request));\r",
+              "pm.collectionVariables.set(\"expectedValidation\",JSON.stringify(user.errors));\r",
+              "pm.collectionVariables.set(\"validationIndex\", (userIndex + 1) % users.length);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{userJson}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{URL_BASE}}/auth/clientlogin",
+          "host": [
+            "{{URL_BASE}}"
+          ],
+          "path": [
+            "auth",
+            "clientlogin"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "users",
+      "value": "[{\"email\":\"cliente1@mascotas.com\",\"password\":\"Valid123!\"},{\"email\":\"cliente2@mascotas.com\",\"password\":\"Valid456!\"},{\"email\":\"cliente1@mascotas.com\",\"password\":\"WrongPassword1\"},{\"email\":\"noexiste@mascotas.com\",\"password\":\"Valid123!\"},{\"email\":\"' OR '1'='1\",\"password\":\"' OR '1'='1\"}]"
+    },
+    {
+      "key": "currentEmail",
+      "value": ""
+    },
+    {
+      "key": "currentPassword",
+      "value": ""
+    },
+    {
+      "key": "currentIndex",
+      "value": ""
+    },
+    {
+      "key": "URL_BASE",
+      "value": ""
+    },
+    {
+      "key": "usersForValidation",
+      "value": "[{\"request\":{\"password\":\"Valid123!\"},\"errors\":{\"email\":true}},{\"request\":{\"email\":\"cliente1@mascotas.com\"},\"errors\":{\"password\":true}},{\"request\":{},\"errors\":{\"email\":true,\"password\":true}},{\"request\":{\"email\":\"\",\"password\":\"Valid123!\"},\"errors\":{\"email\":true}},{\"request\":{\"email\":\"cliente1@mascotas.com\",\"password\":\"\"},\"errors\":{\"password\":true}},{\"request\":{\"email\":\"   \",\"password\":\"Valid123!\"},\"errors\":{\"email\":true}},{\"request\":{\"email\":\"not-an-email\",\"password\":\"Valid123!\"},\"errors\":{\"email\":true}},{\"request\":{\"email\":null,\"password\":null},\"errors\":{\"email\":true,\"password\":true}}]"
+    },
+    {
+      "key": "userJson",
+      "value": ""
+    },
+    {
+      "key": "validationIndex",
+      "value": ""
+    },
+    {
+      "key": "expectedValidation",
+      "value": ""
+    }
+  ]
+}

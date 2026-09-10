@@ -1,0 +1,19 @@
+{
+  "name": "pact-verifier",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha tests/provider/ItemProviderService.spec.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@pact-foundation/pact": "^17.1.3",
+    "chai": "^6.2.2",
+    "crypto": "^1.0.1",
+    "mocha": "^12.0.0",
+    "node-fetch": "^3.0.0",
+    "path": "^0.12.7"
+  }
+}
